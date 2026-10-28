@@ -3,224 +3,542 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Совместная Рисовальня - Supabase DB</title>
+    <title>Canvas Verse — Multiplayer Art Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        body {
+        :root {
+            --bg-dark: #0f1117;
+            --panel-bg: rgba(22, 26, 38, 0.85);
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --border: rgba(255, 255, 255, 0.1);
+            --text: #f3f4f6;
+            --text-dim: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            background: #0f172a;
-            color: #fff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text);
             height: 100vh;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
-        #login-screen {
-            position: absolute;
-            background: rgba(30, 41, 59, 0.95);
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            text-align: center;
-            border: 1px solid #475569;
+
+        header {
+            height: 60px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
             z-index: 10;
         }
-        input {
-            padding: 12px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: 1px solid #64748b;
-            background: #0f172a;
-            color: #fff;
-            margin-bottom: 15px;
-            width: 220px;
-            outline: none;
+
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a5b4fc, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        button {
-            padding: 12px 24px;
-            font-size: 16px;
-            background: #ec4899;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
         }
-        button:hover { background: #db2777; }
-        #app {
-            display: none;
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+            transition: all 0.3s;
+        }
+
+        .dot.online {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .workspace {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+
+        .toolbar {
+            width: 80px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid var(--border);
+            display: flex;
             flex-direction: column;
             align-items: center;
+            padding: 20px 0;
+            gap: 16px;
+            z-index: 5;
         }
-        canvas {
-            background: #ffffff;
-            box-shadow: 0 0 30px rgba(236, 72, 153, 0.3);
+
+        .tool-btn {
+            width: 48px;
+            height: 48px;
             border-radius: 12px;
-            cursor: crosshair;
-        }
-        .toolbar {
-            margin-bottom: 15px;
+            border: 1px solid transparent;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-dim);
+            cursor: pointer;
             display: flex;
-            gap: 10px;
             align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
         }
-        .color-btn {
-            width: 30px;
-            height: 30px;
+
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .color-picker-wrapper {
+            position: relative;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            border: 2px solid #fff;
+            overflow: hidden;
+            border: 2px solid var(--border);
             cursor: pointer;
         }
-        #clear-btn {
-            background: #64748b;
-            padding: 8px 16px;
-            font-size: 14px;
+
+        input[type="color"] {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            width: 60px;
+            height: 60px;
+            border: none;
+            cursor: pointer;
         }
-        #clear-btn:hover { background: #475569; }
+
+        .size-slider {
+            -webkit-appearance: slider-vertical;
+            width: 8px;
+            height: 100px;
+            accent-color: var(--accent);
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #090a0f;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+            background-size: 24px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            cursor: crosshair;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+        }
+
+        .panel-header {
+            padding: 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .players-list {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-top: 1px solid var(--border);
+        }
+
+        .messages {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .msg {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 8px 10px;
+            border-radius: 6px;
+            line-height: 1.4;
+        }
+
+        .msg .author {
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 2px;
+        }
+
+        .chat-input {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #fff;
+            outline: none;
+            font-size: 0.85rem;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        .btn-send {
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            padding: 0 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 32px;
+            border-radius: 16px;
+            width: 360px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal-card h2 {
+            margin-bottom: 8px;
+        }
+
+        .modal-card p {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 20px;
+        }
+
+        .modal-card input {
+            width: 100%;
+            margin-bottom: 16px;
+            padding: 10px 14px;
+        }
+
+        .btn-main {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-main:hover {
+            background: var(--accent-hover);
+        }
     </style>
-    <!-- Подключаем клиент Supabase -->
-    <script src="https://cdn.jsdelivr.com/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-    <div id="login-screen">
-        <h2>Совместная Рисовальня</h2>
-        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">Через базу данных Supabase!</p>
-        <input type="text" id="username" placeholder="Твое имя..." maxlength="12"><br>
-        <button id="join-btn">Войти в холст</button>
-    </div>
-
-    <div id="app">
-        <div class="toolbar">
-            <span>Цвет:</span>
-            <div class="color-btn" style="background: #000000;" onclick="setColor('#000000')"></div>
-            <div class="color-btn" style="background: #ef4444;" onclick="setColor('#ef4444')"></div>
-            <div class="color-btn" style="background: #3b82f6;" onclick="setColor('#3b82f6')"></div>
-            <div class="color-btn" style="background: #10b981;" onclick="setColor('#10b981')"></div>
-            <div class="color-btn" style="background: #ec4899;" onclick="setColor('#ec4899')"></div>
-            <button id="clear-btn" onclick="clearCanvas()">Очистить холст</button>
+    <div class="modal" id="loginModal">
+        <div class="modal-card">
+            <h2>Canvas Verse</h2>
+            <p>Введи свой никнейм для входа в онлайн-комнату</p>
+            <input type="text" id="usernameInput" placeholder="Твой никнейм..." maxlength="15">
+            <button class="btn-main" onclick="joinGame()">Войти в сессию</button>
         </div>
-        <canvas id="paintCanvas" width="800" height="500"></canvas>
     </div>
 
-<script>
-    // ВСТАВЬ СВОИ ДАННЫЕ ИЗ SUPABASE СЮДА:
-    const SUPABASE_URL = 'https://rytfzqktytcjsytkxrqn.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_31LjSxs-D3hhNVnFFNTAhA_NKeQhXKk';
+    <header>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
+            Canvas Verse
+        </div>
+        <div class="status-badge">
+            <div class="dot" id="statusDot"></div>
+            <span id="statusText">Офлайн</span>
+        </div>
+    </header>
 
-    let supabaseClient = null;
-    try {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch(e) {
-        console.error("Ошибка Supabase!");
-    }
+    <div class="workspace">
+        <div class="toolbar">
+            <button class="tool-btn active" id="btnBrush" title="Кисть">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
+            </button>
+            <button class="tool-btn" id="btnEraser" title="Ластик">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L13 20H20Z"></path></svg>
+            </button>
+            
+            <div class="color-picker-wrapper" title="Цвет">
+                <input type="color" id="colorPicker" value="#6366f1">
+            </div>
 
-    const canvas = document.getElementById('paintCanvas');
-    const ctx = canvas.getContext('2d');
-    
-    let isDrawing = false;
-    let currentColor = '#000000';
+            <input type="range" class="size-slider" id="brushSize" min="2" max="40" value="6" title="Размер">
 
-    document.getElementById('join-btn').onclick = () => {
-        const val = document.getElementById('username').value.trim();
-        if(!val) return alert('Введите имя!');
+            <button class="tool-btn" id="btnClear" title="Очистить холст" style="margin-top: auto;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        </div>
 
-        if (SUPABASE_URL.includes('YOUR_')) {
-            alert('Не забудь вставить ключи Supabase в код!');
-        }
+        <div class="canvas-container">
+            <canvas id="paintCanvas" width="900" height="600"></canvas>
+        </div>
 
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app').style.display = 'flex';
+        <div class="sidebar">
+            <div class="panel-header">Игроки онлайн (<span id="onlineCount">0</span>)</div>
+            <div class="players-list" id="playersList"></div>
 
-        initDatabaseSync();
-    };
+            <div class="chat-section">
+                <div class="panel-header">Чат комнаты</div>
+                <div class="messages" id="chatMessages"></div>
+                <div class="chat-input">
+                    <input type="text" id="msgInput" placeholder="Написать сообщение...">
+                    <button class="btn-send" onclick="sendMsg()">></button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    function setColor(color) {
-        currentColor = color;
-    }
+    <script>
+        // ВНИМАНИЕ: Замени ссылку ниже на твою реальную ссылку с Render (сервер)!
+        const SERVER_URL = "https://draw-server-xxxx.onrender.com";
 
-    canvas.addEventListener('mousedown', (e) => {
-        isDrawing = true;
-        drawPoint(e.offsetX, e.offsetY, currentColor, false);
-        saveToDb(e.offsetX, e.offsetY, currentColor, 'start');
-    });
+        let socket;
+        let isDrawing = false;
+        let currentMode = 'brush';
+        let nickname = "";
 
-    canvas.addEventListener('mousemove', (e) => {
-        if (!isDrawing) return;
-        drawPoint(e.offsetX, e.offsetY, currentColor, true);
-        saveToDb(e.offsetX, e.offsetY, currentColor, 'draw');
-    });
-
-    window.addEventListener('mouseup', () => {
-        isDrawing = false;
-    });
-
-    function drawPoint(x, y, color, isMoving) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 4;
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-        if (!isMoving) {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-            ctx.stroke();
+        const colorPicker = document.getElementById('colorPicker');
+        const brushSize = document.getElementById('brushSize');
+        const btnBrush = document.getElementById('btnBrush');
+        const btnEraser = document.getElementById('btnEraser');
+
+        function joinGame() {
+            const input = document.getElementById('usernameInput');
+            if (!input.value.trim()) return;
+            nickname = input.value.trim();
+            
+            document.getElementById('loginModal').style.display = 'none';
+
+            socket = io(SERVER_URL);
+
+            socket.on('connect', () => {
+                document.getElementById('statusDot').classList.add('online');
+                document.getElementById('statusText').innerText = 'Онлайн';
+                socket.emit('user_join', nickname);
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('statusDot').classList.remove('online');
+                document.getElementById('statusText').innerText = 'Отключено';
+            });
+
+            socket.on('update_players', (players) => {
+                const list = document.getElementById('playersList');
+                document.getElementById('onlineCount').innerText = players.length;
+                list.innerHTML = '';
+                players.forEach(p => {
+                    list.innerHTML += `
+                        <div class="player-card">
+                            <div class="avatar">${p.name[0].toUpperCase()}</div>
+                            <span>${p.name}</span>
+                        </div>
+                    `;
+                });
+            });
+
+            socket.on('draw_line', (data) => {
+                drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.size, false);
+            });
+
+            socket.on('clear_canvas', () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            });
+
+            socket.on('chat_message', (data) => {
+                const box = document.getElementById('chatMessages');
+                box.innerHTML += `
+                    <div class="msg">
+                        <div class="author">${data.user}</div>
+                        <div>${data.text}</div>
+                    </div>
+                `;
+                box.scrollTop = box.scrollHeight;
+            });
         }
-    }
 
-    // Подписываемся на изменения в таблице game_state
-    function initDatabaseSync() {
-        if (!supabaseClient) return;
+        let lastX = 0;
+        let lastY = 0;
 
-        // Слушаем изменения в таблице game_state
-        supabaseClient
-            .channel('table-db-changes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'game_state' },
-                (payload) => {
-                    const row = payload.new;
-                    if (row && row.data) {
-                        const d = row.data;
-                        if (d.action === 'clear') {
-                            ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        } else {
-                            drawPoint(d.x, d.y, d.color, d.action === 'draw');
-                        }
-                    }
-                }
-            )
-            .subscribe();
-    }
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+        });
 
-    // Сохраняем действие в ту самую таблицу game_state (id у нас всегда 'main_room')
-    async function saveToDb(x, y, color, action) {
-        if (!supabaseClient) return;
-        
-        await supabaseClient
-            .from('game_state')
-            .upsert({ 
-                id: 'main_room', 
-                data: { x, y, color, action, time: Date.now() } 
-            });
-    }
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
 
-    async function clearCanvas() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (!supabaseClient) return;
+            const color = currentMode === 'eraser' ? '#ffffff' : colorPicker.value;
+            const size = brushSize.value;
 
-        await supabaseClient
-            .from('game_state')
-            .upsert({ 
-                id: 'main_room', 
-                data: { action: 'clear', time: Date.now() } 
-            });
-    }
-</script>
+            drawLine(lastX, lastY, x, y, color, size, true);
+
+            lastX = x;
+            lastY = y;
+        });
+
+        canvas.addEventListener('mouseup', () => isDrawing = false);
+        canvas.addEventListener('mouseleave', () => isDrawing = false);
+
+        function drawLine(x0, y0, x1, y1, color, size, emit) {
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.stroke();
+
+            if (emit && socket) {
+                socket.emit('draw_line', { x0, y0, x1, y1, color, size });
+            }
+        }
+
+        btnBrush.onclick = () => {
+            currentMode = 'brush';
+            btnBrush.classList.add('active');
+            btnEraser.classList.remove('active');
+        };
+
+        btnEraser.onclick = () => {
+            currentMode = 'eraser';
+            btnEraser.classList.add('active');
+            btnBrush.classList.remove('active');
+        };
+
+        document.getElementById('btnClear').onclick = () => {
+            if (confirm('Очистить весь холст?')) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (socket) socket.emit('clear_canvas');
+            }
+        };
+
+        function sendMsg() {
+            const input = document.getElementById('msgInput');
+            if (input.value.trim() && socket) {
+                socket.emit('chat_message', input.value.trim());
+                input.value = '';
+            }
+        }
+    </script>
 </body>
 </html>
