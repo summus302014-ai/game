@@ -11,25 +11,17 @@ const io = new Server(server, {
 let players = {};
 
 io.on('connection', (socket) => {
-  socket.on('user_join', (data) => {
-    players[socket.id] = {
-      id: socket.id,
-      name: data.name,
-      color: data.color,
-      x: 100,
-      y: 100,
-      angle: 0
-    };
-    io.emit('update_players', players);
+  socket.on('user_join', (username) => {
+    players[socket.id] = { id: socket.id, name: username };
+    io.emit('update_players', Object.values(players));
   });
 
-  socket.on('player_move', (data) => {
-    if (players[socket.id]) {
-      players[socket.id].x = data.x;
-      players[socket.id].y = data.y;
-      players[socket.id].angle = data.angle;
-      socket.broadcast.emit('update_players', players);
-    }
+  socket.on('draw_line', (data) => {
+    socket.broadcast.emit('draw_line', data);
+  });
+
+  socket.on('clear_canvas', () => {
+    io.emit('clear_canvas');
   });
 
   socket.on('chat_message', (text) => {
@@ -40,11 +32,11 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     delete players[socket.id];
-    io.emit('update_players', players);
+    io.emit('update_players', Object.values(players));
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Car game server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
