@@ -3,37 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Космическая Дуэль - Supabase Multiplayer</title>
+    <title>Совместная Рисовальня - Supabase DB</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background: #0b0f19;
+            background: #0f172a;
             color: #fff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
+            overflow: hidden;
         }
         #login-screen {
             position: absolute;
-            background: rgba(15, 23, 42, 0.95);
+            background: rgba(30, 41, 59, 0.95);
             padding: 30px;
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             text-align: center;
-            border: 1px solid #334155;
+            border: 1px solid #475569;
             z-index: 10;
         }
         input {
             padding: 12px;
             font-size: 16px;
             border-radius: 8px;
-            border: 1px solid #475569;
-            background: #1e293b;
+            border: 1px solid #64748b;
+            background: #0f172a;
             color: #fff;
             margin-bottom: 15px;
             width: 220px;
@@ -42,7 +42,7 @@
         button {
             padding: 12px 24px;
             font-size: 16px;
-            background: #6366f1;
+            background: #ec4899;
             color: white;
             border: none;
             border-radius: 8px;
@@ -50,23 +50,37 @@
             font-weight: bold;
             transition: background 0.2s;
         }
-        button:hover { background: #4f46e5; }
+        button:hover { background: #db2777; }
+        #app {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
         canvas {
-            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
-            box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+            background: #ffffff;
+            box-shadow: 0 0 30px rgba(236, 72, 153, 0.3);
             border-radius: 12px;
-            display: none;
+            cursor: crosshair;
         }
-        #ui {
-            display: none;
-            position: absolute;
-            top: 20px;
-            font-size: 18px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            z-index: 5;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        .toolbar {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
+        .color-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            cursor: pointer;
+        }
+        #clear-btn {
+            background: #64748b;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        #clear-btn:hover { background: #475569; }
     </style>
     <!-- Подключаем клиент Supabase -->
     <script src="https://cdn.jsdelivr.com/npm/@supabase/supabase-js@2"></script>
@@ -74,17 +88,27 @@
 <body>
 
     <div id="login-screen">
-        <h2>Космическая Дуэль</h2>
-        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">Введите имя и позовите подругу!</p>
-        <input type="text" id="username" placeholder="Ваше имя..." maxlength="12"><br>
-        <button id="join-btn">Войти в космос</button>
+        <h2>Совместная Рисовальня</h2>
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">Через базу данных Supabase!</p>
+        <input type="text" id="username" placeholder="Твое имя..." maxlength="12"><br>
+        <button id="join-btn">Войти в холст</button>
     </div>
 
-    <div id="ui">Очки: <span id="score">0</span></div>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="app">
+        <div class="toolbar">
+            <span>Цвет:</span>
+            <div class="color-btn" style="background: #000000;" onclick="setColor('#000000')"></div>
+            <div class="color-btn" style="background: #ef4444;" onclick="setColor('#ef4444')"></div>
+            <div class="color-btn" style="background: #3b82f6;" onclick="setColor('#3b82f6')"></div>
+            <div class="color-btn" style="background: #10b981;" onclick="setColor('#10b981')"></div>
+            <div class="color-btn" style="background: #ec4899;" onclick="setColor('#ec4899')"></div>
+            <button id="clear-btn" onclick="clearCanvas()">Очистить холст</button>
+        </div>
+        <canvas id="paintCanvas" width="800" height="500"></canvas>
+    </div>
 
 <script>
-    // СЮДА ВСТАВЛЯЙ СВОИ ДАННЫЕ ИЗ SUPABASE:
+    // ВСТАВЬ СВОИ ДАННЫЕ ИЗ SUPABASE СЮДА:
     const SUPABASE_URL = 'https://rytfzqktytcjsytkxrqn.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_31LjSxs-D3hhNVnFFNTAhA_NKeQhXKk';
 
@@ -92,135 +116,110 @@
     try {
         supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } catch(e) {
-        console.error("Ошибка инициализации Supabase. Проверь ключи!");
+        console.error("Ошибка Supabase!");
     }
 
-    const canvas = document.getElementById('gameCanvas');
+    const canvas = document.getElementById('paintCanvas');
     const ctx = canvas.getContext('2d');
     
-    let myName = '';
-    let myId = 'player_' + Math.random().toString(36).substring(2, 9);
-    let myScore = 0;
-    
-    const keys = {};
-    let myX = 400, myY = 300;
-    const speed = 4;
-    
-    let players = {};
-    let stars = [];
-
-    // Генерируем фоновые звезды
-    for(let i = 0; i < 50; i++) {
-        stars.push({x: Math.random() * 800, y: Math.random() * 600, size: Math.random() * 2});
-    }
+    let isDrawing = false;
+    let currentColor = '#000000';
 
     document.getElementById('join-btn').onclick = () => {
         const val = document.getElementById('username').value.trim();
         if(!val) return alert('Введите имя!');
-        myName = val;
-        
+
         if (SUPABASE_URL.includes('YOUR_')) {
-            alert('Внимание! Забыла заменить ключи Supabase в коде!');
+            alert('Не забудь вставить ключи Supabase в код!');
         }
 
         document.getElementById('login-screen').style.display = 'none';
-        canvas.style.display = 'block';
-        document.getElementById('ui').style.display = 'block';
+        document.getElementById('app').style.display = 'flex';
 
-        initMultiplayer();
-        loop();
+        initDatabaseSync();
     };
 
-    window.addEventListener('keydown', e => keys[e.code] = true);
-    window.addEventListener('keyup', e => keys[e.code] = false);
-
-    function initMultiplayer() {
-        if (!supabaseClient) return;
-
-        const channel = supabaseClient.channel('space_game_room');
-
-        channel
-            .on('broadcast', { event: 'state' }, payload => {
-                if (payload.payload.id !== myId) {
-                    players[payload.payload.id] = payload.payload;
-                }
-            })
-            .subscribe();
-
-        // Каждые 50мс отправляем свои координаты
-        setInterval(() => {
-            if (!myName) return;
-            channel.send({
-                type: 'broadcast',
-                event: 'state',
-                payload: { id: myId, name: myName, x: myX, y: myY, score: myScore }
-            });
-        }, 50);
+    function setColor(color) {
+        currentColor = color;
     }
 
-    function update() {
-        if (keys['ArrowLeft'] || keys['KeyA']) myX -= speed;
-        if (keys['ArrowRight'] || keys['KeyD']) myX += speed;
-        if (keys['ArrowUp'] || keys['KeyW']) myY -= speed;
-        if (keys['ArrowDown'] || keys['KeyS']) myY += speed;
+    canvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        drawPoint(e.offsetX, e.offsetY, currentColor, false);
+        saveToDb(e.offsetX, e.offsetY, currentColor, 'start');
+    });
 
-        // Границы экрана
-        myX = Math.max(20, Math.min(780, myX));
-        myY = Math.max(20, Math.min(580, myY));
-    }
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDrawing) return;
+        drawPoint(e.offsetX, e.offsetY, currentColor, true);
+        saveToDb(e.offsetX, e.offsetY, currentColor, 'draw');
+    });
 
-    function draw() {
-        ctx.fillStyle = '#0b0f19';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    window.addEventListener('mouseup', () => {
+        isDrawing = false;
+    });
 
-        // Звезды
-        ctx.fillStyle = '#ffffff';
-        stars.forEach(s => {
-            ctx.globalAlpha = Math.random() * 0.7 + 0.3;
-            ctx.fillRect(s.x, s.y, s.size, s.size);
-        });
-        ctx.globalAlpha = 1.0;
+    function drawPoint(x, y, color, isMoving) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
 
-        // Рисуем себя
-        drawShip(myX, myY, myName, '#6366f1');
-
-        // Рисуем остальных игроков
-        for (let id in players) {
-            let p = players[id];
-            drawShip(p.x, p.y, p.name, '#ec4899');
+        if (!isMoving) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+            ctx.stroke();
         }
     }
 
-    function drawShip(x, y, name, color) {
-        ctx.save();
-        ctx.translate(x, y);
-        
-        // Корпус корабля
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(0, -15);
-        ctx.lineTo(12, 12);
-        ctx.lineTo(-12, 12);
-        ctx.closePath();
-        ctx.fill();
+    // Подписываемся на изменения в таблице game_state
+    function initDatabaseSync() {
+        if (!supabaseClient) return;
 
-        // Огонек двигателя
-        ctx.fillStyle = '#f97316';
-        ctx.fillRect(-4, 12, 8, 6);
-
-        // Имя игрока
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(name, 0, -22);
-
-        ctx.restore();
+        // Слушаем изменения в таблице game_state
+        supabaseClient
+            .channel('table-db-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'game_state' },
+                (payload) => {
+                    const row = payload.new;
+                    if (row && row.data) {
+                        const d = row.data;
+                        if (d.action === 'clear') {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        } else {
+                            drawPoint(d.x, d.y, d.color, d.action === 'draw');
+                        }
+                    }
+                }
+            )
+            .subscribe();
     }
 
-    function loop() {
-        update();
-        draw();
-        requestAnimationFrame(loop);
+    // Сохраняем действие в ту самую таблицу game_state (id у нас всегда 'main_room')
+    async function saveToDb(x, y, color, action) {
+        if (!supabaseClient) return;
+        
+        await supabaseClient
+            .from('game_state')
+            .upsert({ 
+                id: 'main_room', 
+                data: { x, y, color, action, time: Date.now() } 
+            });
+    }
+
+    async function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!supabaseClient) return;
+
+        await supabaseClient
+            .from('game_state')
+            .upsert({ 
+                id: 'main_room', 
+                data: { action: 'clear', time: Date.now() } 
+            });
     }
 </script>
 </body>
