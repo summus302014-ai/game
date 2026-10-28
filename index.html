@@ -47,7 +47,6 @@
         .canvas-container { flex: 1; position: relative; background: #090a0f; background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0); background-size: 24px 24px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         canvas { background: #ffffff; border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); cursor: crosshair; }
 
-        /* Чужие курсоры на холсте */
         .remote-cursor { position: absolute; pointer-events: none; transform: translate(-2px, -2px); z-index: 50; transition: transform 0.05s linear; }
         .cursor-pointer { width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
         .cursor-label { position: absolute; left: 16px; top: 10px; background: rgba(0,0,0,0.8); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; white-space: nowrap; font-weight: 600; }
@@ -134,7 +133,6 @@
     </div>
 
     <script>
-        // ВСТАВЬ СВОЮ ССЫЛКУ С RENDER СЮДА:
         const SERVER_URL = "https://game-zaam.onrender.com";
 
         let socket;
@@ -143,11 +141,10 @@
         let nickname = "";
         let myColor = '#' + Math.floor(Math.random()*16777215).toString(16);
 
-        // Получаем ID комнаты из ссылки (например ?room=abc123), если нет — создаем случайную
         const urlParams = new URLSearchParams(window.location.search);
         let roomId = urlParams.get('room');
         if (!roomId) {
-            roomId = Math.random().toString(36.substring(2, 8));
+            roomId = Math.random().toString(36).substring(2, 8);
             window.history.replaceState({}, '', `?room=${roomId}`);
         }
         document.getElementById('roomBadge').innerText = `Комната: ${roomId} (Копировать)`;
@@ -215,7 +212,6 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             });
 
-            // Отображение курсоров других игроков
             socket.on('cursor_move', (data) => {
                 let cursor = document.getElementById(`cursor-${data.id}`);
                 const container = document.getElementById('canvasContainer');
@@ -229,7 +225,6 @@
                     container.appendChild(cursor);
                 }
 
-                // Переводим координаты холста в координаты экрана контейнера
                 cursor.style.left = `${rect.left + data.x}px`;
                 cursor.style.top = `${rect.top + data.y}px`;
             });
@@ -266,7 +261,6 @@
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            // Отправляем позицию курсора на сервер
             if (socket) {
                 socket.emit('cursor_move', { x, y });
             }
@@ -317,7 +311,6 @@
             }
         };
 
-        // Кнопка сохранения рисунка в файл PNG
         document.getElementById('btnSave').onclick = () => {
             const link = document.createElement('a');
             link.download = 'my-art.png';
