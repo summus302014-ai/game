@@ -456,6 +456,13 @@
                 drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.size, false);
             });
 
+            // Получаем историю рисунков при входе
+            socket.on('init_history', (history) => {
+                history.forEach(data => {
+                    drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.size, false);
+                });
+            });
+
             socket.on('clear_canvas', () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             });
