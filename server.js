@@ -9,18 +9,31 @@ const io = new Server(server, {
 });
 
 let players = {};
+let drawingHistory = []; // Массив для сохранения всех нарисованных линий
 
 io.on('connection', (socket) => {
   socket.on('user_join', (username) => {
     players[socket.id] = { id: socket.id, name: username };
+    
+    // Отправляем новому игроку всю историю рисунков, чтобы он видел старое
+    socket.emit('init_history', drawingHistory);
+
     io.emit('update_players', Object.values(players));
   });
 
   socket.on('draw_line', (data) => {
+    // Сохраняем линию в историю
+    drawingHistory.push(data);
+    // Ограничим историю, например, 10000 линиями, чтобы память не переполнялась
+    if (drawingHistory.length > 10000) {
+      drawingHistory.shift();
+    }
+
     socket.broadcast.emit('draw_line', data);
   });
 
   socket.on('clear_canvas', () => {
+    drawingHistory = []; // Очищаем историю при стирании холста
     io.emit('clear_canvas');
   });
 
