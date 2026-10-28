@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas Verse — Pro Edition</title>
+    <title>Canvas Verse — Multiplayer Art Studio</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         :root {
             --bg-dark: #0f1117;
-            --panel-bg: rgba(22, 26, 38, 0.9);
+            --panel-bg: rgba(22, 26, 38, 0.85);
             --accent: #6366f1;
             --accent-hover: #4f46e5;
             --border: rgba(255, 255, 255, 0.1);
@@ -17,70 +17,333 @@
             --text-dim: #9ca3af;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
 
         header {
-            height: 60px; background: var(--panel-bg); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 10;
+            height: 60px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 10;
         }
-        .logo { font-size: 1.2rem; font-weight: 800; background: linear-gradient(135deg, #a5b4fc, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap: 8px; }
-        
-        .room-badge { background: rgba(99, 102, 241, 0.15); border: 1px solid var(--accent); padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; color: #a5b4fc; transition: 0.2s; }
-        .room-badge:hover { background: rgba(99, 102, 241, 0.3); }
 
-        .status-badge { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; background: rgba(255, 255, 255, 0.05); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); }
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 8px #ef4444; }
-        .dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a5b4fc, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
-        .workspace { flex: 1; display: flex; position: relative; }
-        .toolbar { width: 80px; background: var(--panel-bg); backdrop-filter: blur(12px); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 20px 0; gap: 16px; z-index: 5; }
-        
-        .tool-btn { width: 48px; height: 48px; border-radius: 12px; border: 1px solid transparent; background: rgba(255, 255, 255, 0.03); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .tool-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
-        .tool-btn.active { background: var(--accent); color: #fff; box-shadow: 0 0 15px rgba(99, 102, 241, 0.4); }
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+        }
 
-        .color-picker-wrapper { position: relative; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 2px solid var(--border); cursor: pointer; }
-        input[type="color"] { position: absolute; top: -10px; left: -10px; width: 60px; height: 60px; border: none; cursor: pointer; }
-        .size-slider { -webkit-appearance: slider-vertical; width: 8px; height: 80px; accent-color: var(--accent); }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+            transition: all 0.3s;
+        }
 
-        .canvas-container { flex: 1; position: relative; background: #090a0f; background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0); background-size: 24px 24px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        canvas { background: #ffffff; border-radius: 12px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); cursor: crosshair; }
+        .dot.online {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
 
-        .remote-cursor { position: absolute; pointer-events: none; transform: translate(-2px, -2px); z-index: 50; transition: transform 0.05s linear; }
-        .cursor-pointer { width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
-        .cursor-label { position: absolute; left: 16px; top: 10px; background: rgba(0,0,0,0.8); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; white-space: nowrap; font-weight: 600; }
+        .workspace {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
 
-        .sidebar { width: 280px; background: var(--panel-bg); backdrop-filter: blur(12px); border-left: 1px solid var(--border); display: flex; flex-direction: column; z-index: 5; }
-        .panel-header { padding: 16px; font-size: 0.9rem; font-weight: 600; border-bottom: 1px solid var(--border); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
-        .players-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
-        .player-card { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; font-size: 0.9rem; }
-        .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem; color: #fff; }
+        .toolbar {
+            width: 80px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 16px;
+            z-index: 5;
+        }
 
-        .chat-section { flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--border); }
-        .messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; }
-        .msg { background: rgba(255, 255, 255, 0.03); padding: 8px 10px; border-radius: 6px; line-height: 1.4; }
-        .msg .author { font-weight: 600; color: var(--accent); margin-bottom: 2px; }
-        .chat-input { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
-        input[type="text"] { flex: 1; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; outline: none; font-size: 0.85rem; }
-        input[type="text"]:focus { border-color: var(--accent); }
-        .btn-send { background: var(--accent); border: none; color: #fff; padding: 0 12px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .tool-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
 
-        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .modal-card { background: var(--panel-bg); border: 1px solid var(--border); padding: 32px; border-radius: 16px; width: 380px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .modal-card h2 { margin-bottom: 8px; }
-        .modal-card p { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 20px; }
-        .modal-card input { width: 100%; margin-bottom: 16px; padding: 10px 14px; }
-        .btn-main { width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .btn-main:hover { background: var(--accent-hover); }
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+        }
+
+        .tool-btn.active {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .color-picker-wrapper {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid var(--border);
+            cursor: pointer;
+        }
+
+        input[type="color"] {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            width: 60px;
+            height: 60px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .size-slider {
+            -webkit-appearance: slider-vertical;
+            width: 8px;
+            height: 100px;
+            accent-color: var(--accent);
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: #090a0f;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+            background-size: 24px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            cursor: crosshair;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+        }
+
+        .panel-header {
+            padding: 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .players-list {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-top: 1px solid var(--border);
+        }
+
+        .messages {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .msg {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 8px 10px;
+            border-radius: 6px;
+            line-height: 1.4;
+        }
+
+        .msg .author {
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 2px;
+        }
+
+        .chat-input {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #fff;
+            outline: none;
+            font-size: 0.85rem;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        .btn-send {
+            background: var(--accent);
+            border: none;
+            color: #fff;
+            padding: 0 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 32px;
+            border-radius: 16px;
+            width: 360px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal-card h2 {
+            margin-bottom: 8px;
+        }
+
+        .modal-card p {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 20px;
+        }
+
+        .modal-card input {
+            width: 100%;
+            margin-bottom: 16px;
+            padding: 10px 14px;
+        }
+
+        .btn-main {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-main:hover {
+            background: var(--accent-hover);
+        }
     </style>
 </head>
 <body>
 
     <div class="modal" id="loginModal">
         <div class="modal-card">
-            <h2>Canvas Verse Pro</h2>
-            <p>Введи никнейм для входа в комнату</p>
+            <h2>Canvas Verse</h2>
+            <p>Введи свой никнейм для входа в онлайн-комнату</p>
             <input type="text" id="usernameInput" placeholder="Твой никнейм..." maxlength="15">
             <button class="btn-main" onclick="joinGame()">Войти в сессию</button>
         </div>
@@ -88,10 +351,9 @@
 
     <header>
         <div class="logo">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
             Canvas Verse
         </div>
-        <div class="room-badge" id="roomBadge" onclick="copyRoomLink()" title="Нажми, чтобы скопировать ссылку на комнату">Комната: Загрузка...</div>
         <div class="status-badge">
             <div class="dot" id="statusDot"></div>
             <span id="statusText">Офлайн</span>
@@ -100,32 +362,37 @@
 
     <div class="workspace">
         <div class="toolbar">
-            <button class="tool-btn active" id="btnBrush" title="Кисть">✏️</button>
-            <button class="tool-btn" id="btnEraser" title="Ластик">🧽</button>
+            <button class="tool-btn active" id="btnBrush" title="Кисть">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
+            </button>
+            <button class="tool-btn" id="btnEraser" title="Ластик">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L13 20H20Z"></path></svg>
+            </button>
             
-            <div class="color-picker-wrapper" title="Цвет кисти">
+            <div class="color-picker-wrapper" title="Цвет">
                 <input type="color" id="colorPicker" value="#6366f1">
             </div>
 
-            <input type="range" class="size-slider" id="brushSize" min="2" max="40" value="6" title="Размер кисти">
+            <input type="range" class="size-slider" id="brushSize" min="2" max="40" value="6" title="Размер">
 
-            <button class="tool-btn" id="btnSave" title="Сохранить картинку" style="margin-top: auto;">💾</button>
-            <button class="tool-btn" id="btnClear" title="Очистить холст">🗑️</button>
+            <button class="tool-btn" id="btnClear" title="Очистить холст" style="margin-top: auto;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
         </div>
 
-        <div class="canvas-container" id="canvasContainer">
+        <div class="canvas-container">
             <canvas id="paintCanvas" width="900" height="600"></canvas>
         </div>
 
         <div class="sidebar">
-            <div class="panel-header">Игроки (<span id="onlineCount">0</span>)</div>
+            <div class="panel-header">Игроки онлайн (<span id="onlineCount">0</span>)</div>
             <div class="players-list" id="playersList"></div>
 
             <div class="chat-section">
                 <div class="panel-header">Чат комнаты</div>
                 <div class="messages" id="chatMessages"></div>
                 <div class="chat-input">
-                    <input type="text" id="msgInput" placeholder="Сообщение...">
+                    <input type="text" id="msgInput" placeholder="Написать сообщение...">
                     <button class="btn-send" onclick="sendMsg()">></button>
                 </div>
             </div>
@@ -133,26 +400,13 @@
     </div>
 
     <script>
-        const SERVER_URL = "https://game-zaam.onrender.com";
+        // ВНИМАНИЕ: Замени ссылку ниже на твою реальную ссылку с Render (сервер)!
+        const SERVER_URL = "https://draw-server-xxxx.onrender.com";
 
         let socket;
         let isDrawing = false;
         let currentMode = 'brush';
         let nickname = "";
-        let myColor = '#' + Math.floor(Math.random()*16777215).toString(16);
-
-        const urlParams = new URLSearchParams(window.location.search);
-        let roomId = urlParams.get('room');
-        if (!roomId) {
-            roomId = Math.random().toString(36).substring(2, 8);
-            window.history.replaceState({}, '', `?room=${roomId}`);
-        }
-        document.getElementById('roomBadge').innerText = `Комната: ${roomId} (Копировать)`;
-
-        function copyRoomLink() {
-            navigator.clipboard.writeText(window.location.href);
-            alert('Ссылка на комнату скопирована! Отправь её другу.');
-        }
 
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
@@ -176,18 +430,12 @@
             socket.on('connect', () => {
                 document.getElementById('statusDot').classList.add('online');
                 document.getElementById('statusText').innerText = 'Онлайн';
-                socket.emit('join_room', { roomId, username: nickname, color: myColor });
+                socket.emit('user_join', nickname);
             });
 
             socket.on('disconnect', () => {
                 document.getElementById('statusDot').classList.remove('online');
                 document.getElementById('statusText').innerText = 'Отключено';
-            });
-
-            socket.on('init_history', (history) => {
-                history.forEach(data => {
-                    drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.size, false);
-                });
             });
 
             socket.on('update_players', (players) => {
@@ -197,7 +445,7 @@
                 players.forEach(p => {
                     list.innerHTML += `
                         <div class="player-card">
-                            <div class="avatar" style="background: ${p.color}">${p.name[0].toUpperCase()}</div>
+                            <div class="avatar">${p.name[0].toUpperCase()}</div>
                             <span>${p.name}</span>
                         </div>
                     `;
@@ -210,28 +458,6 @@
 
             socket.on('clear_canvas', () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-            });
-
-            socket.on('cursor_move', (data) => {
-                let cursor = document.getElementById(`cursor-${data.id}`);
-                const container = document.getElementById('canvasContainer');
-                const rect = canvas.getBoundingClientRect();
-
-                if (!cursor) {
-                    cursor = document.createElement('div');
-                    cursor.id = `cursor-${data.id}`;
-                    cursor.className = 'remote-cursor';
-                    cursor.innerHTML = `<div class="cursor-pointer"></div><div class="cursor-label">Игрок</div>`;
-                    container.appendChild(cursor);
-                }
-
-                cursor.style.left = `${rect.left + data.x}px`;
-                cursor.style.top = `${rect.top + data.y}px`;
-            });
-
-            socket.on('remove_cursor', (id) => {
-                const cursor = document.getElementById(`cursor-${id}`);
-                if (cursor) cursor.remove();
             });
 
             socket.on('chat_message', (data) => {
@@ -257,15 +483,10 @@
         });
 
         canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-
-            if (socket) {
-                socket.emit('cursor_move', { x, y });
-            }
-
-            if (!isDrawing) return;
 
             const color = currentMode === 'eraser' ? '#ffffff' : colorPicker.value;
             const size = brushSize.value;
@@ -305,17 +526,10 @@
         };
 
         document.getElementById('btnClear').onclick = () => {
-            if (confirm('Очистить весь холст для всех?')) {
+            if (confirm('Очистить весь холст?')) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 if (socket) socket.emit('clear_canvas');
             }
-        };
-
-        document.getElementById('btnSave').onclick = () => {
-            const link = document.createElement('a');
-            link.download = 'my-art.png';
-            link.href = canvas.toDataURL();
-            link.click();
         };
 
         function sendMsg() {
