@@ -3,328 +3,225 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Космическая Дуэль — Мультиплеер</title>
-    <!-- Подключаем Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Подключаем шрифт Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <title>Космическая Дуэль - Supabase Multiplayer</title>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0b0f19; color: #f3f4f6; overflow: hidden; }
-        canvas { background: radial-gradient(circle at center, #111827 0%, #030712 100%); box-shadow: 0 0 40px rgba(79, 70, 229, 0.2); }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0b0f19;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        #login-screen {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            text-align: center;
+            border: 1px solid #334155;
+            z-index: 10;
+        }
+        input {
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: #fff;
+            margin-bottom: 15px;
+            width: 220px;
+            outline: none;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background: #4f46e5; }
+        canvas {
+            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+            border-radius: 12px;
+            display: none;
+        }
+        #ui {
+            display: none;
+            position: absolute;
+            top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            z-index: 5;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
     </style>
+    <!-- Подключаем клиент Supabase -->
+    <script src="https://cdn.jsdelivr.com/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="h-screen w-screen flex flex-col items-center justify-between p-4 select-none">
+<body>
 
-    <!-- Верхняя панель: статус и счет -->
-    <header class="w-full max-w-4xl flex items-center justify-between bg-gray-900/80 backdrop-blur-md p-4 rounded-2xl border border-gray-800 shadow-lg">
-        <div class="flex items-center space-x-3">
-            <span class="inline-block w-3 h-3 rounded-full bg-emerald-500 animate-pulse" id="connection-status"></span>
-            <span class="font-bold tracking-wide text-lg bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">КОСМИЧЕСКАЯ ДУЭЛЬ</span>
-        </div>
-        <div id="score-board" class="flex space-x-6 text-sm font-semibold">
-            <!-- Сюда динамически выводятся очки игроков -->
-            <span class="text-gray-400">Ожидание игроков...</span>
-        </div>
-        <button onclick="toggleModal('rules-modal')" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs rounded-xl transition border border-gray-700">Правила</button>
-    </header>
+    <div id="login-screen">
+        <h2>Космическая Дуэль</h2>
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">Введите имя и позовите подругу!</p>
+        <input type="text" id="username" placeholder="Ваше имя..." maxlength="12"><br>
+        <button id="join-btn">Войти в космос</button>
+    </div>
 
-    <!-- Основной игровой экран -->
-    <main class="relative flex-1 flex items-center justify-center w-full my-2">
-        <!-- Экран авторизации/ввода имени -->
-        <div id="login-screen" class="absolute inset-0 z-20 flex items-center justify-center bg-gray-950/80 backdrop-blur-md">
-            <div class="bg-gray-900 p-8 rounded-3xl border border-gray-800 shadow-2xl max-w-md w-full text-center space-y-6">
-                <div class="space-y-2">
-                    <h2 class="text-2xl font-extrabold text-white">Вход в игру</h2>
-                    <p class="text-xs text-gray-400">Введите свое имя, чтобы начать битву с подругой</p>
-                </div>
-                <input type="text" id="player-name-input" placeholder="Ваше имя..." maxlength="12" class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-2xl focus:outline-none focus:border-indigo-500 text-center font-semibold text-lg text-white">
-                <button onclick="joinGame()" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-2xl shadow-lg transition transform active:scale-95">Войти в Космос</button>
-            </div>
-        </div>
+    <div id="ui">Очки: <span id="score">0</span></div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
 
-        <!-- Кастомное модальное окно уведомлений -->
-        <div id="custom-modal" class="hidden absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div class="bg-gray-900 p-6 rounded-3xl border border-gray-800 max-w-sm w-full text-center space-y-4">
-                <h3 id="modal-title" class="text-lg font-bold text-white">Уведомление</h3>
-                <p id="modal-text" class="text-sm text-gray-300"></p>
-                <button onclick="closeModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl">Понятно</button>
-            </div>
-        </div>
+<script>
+    // СЮДА ВСТАВЛЯЙ СВОИ ДАННЫЕ ИЗ SUPABASE:
+    const SUPABASE_URL = 'https://rytfzqktytcjsytkxrqn.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_31LjSxs-D3hhNVnFFNTAhA_NKeQhXKk';
 
-        <!-- Модальное окно правил -->
-        <div id="rules-modal" class="hidden absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div class="bg-gray-900 p-6 rounded-3xl border border-gray-800 max-w-md w-full text-space space-y-4 text-left">
-                <h3 class="text-xl font-bold text-white text-center">Правила игры</h3>
-                <ul class="text-sm text-gray-300 space-y-2 list-disc list-inside">
-                    <li><strong class="text-indigo-400">Управление:</strong> Стрелки Влево/Вправо (или A/D) — поворот корабля. Стрелка Вверх (или W) — тяга/ускорение вперед. Пробел — стрельба лазерами!</li>
-                    <li><strong class="text-purple-400">Цель:</strong> Уничтожайте астероиды, собирайте парящие энергетические сферы и соревнуйтесь с подругой за очки.</li>
-                    <li><strong class="text-emerald-400">Мультиплеер:</strong> Отправьте ссылку на эту страницу подруге, и вы появитесь на одной арене в реальном времени.</li>
-                </ul>
-                <button onclick="toggleModal('rules-modal')" class="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-xl">Закрыть</button>
-            </div>
-        </div>
+    let supabaseClient = null;
+    try {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch(e) {
+        console.error("Ошибка инициализации Supabase. Проверь ключи!");
+    }
 
-        <!-- Игровой Canvas -->
-        <canvas id="gameCanvas" class="rounded-3xl border border-gray-800 w-full max-w-4xl h-[500px]"></canvas>
-    </main>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let myName = '';
+    let myId = 'player_' + Math.random().toString(36).substring(2, 9);
+    let myScore = 0;
+    
+    const keys = {};
+    let myX = 400, myY = 300;
+    const speed = 4;
+    
+    let players = {};
+    let stars = [];
 
-    <!-- Нижняя панель подсказок управления для мобильных/ПК -->
-    <footer class="w-full max-w-4xl flex items-center justify-between bg-gray-900/80 backdrop-blur-md px-6 py-3 rounded-2xl border border-gray-800 text-xs text-gray-400">
-        <div class="flex items-center space-x-4">
-            <span>🚀 Управление: <strong class="text-gray-200">W, A, D / Стрелки</strong></span>
-            <span>🎯 Огонь: <strong class="text-gray-200">Пробел</strong></span>
-        </div>
-        <div id="player-id-display" class="font-mono text-[10px] text-gray-500">ID сессии: загрузка...</div>
-    </footer>
+    // Генерируем фоновые звезды
+    for(let i = 0; i < 50; i++) {
+        stars.push({x: Math.random() * 800, y: Math.random() * 600, size: Math.random() * 2});
+    }
 
-    <!-- Подключаем Firebase скрипты -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Инициализация переменных окружения Firebase
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'space-duo-game-session-v1';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-
-        let db, auth, userId = null;
-        let playerName = "";
-        let isJoined = false;
-
-        // Игровое состояние
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+    document.getElementById('join-btn').onclick = () => {
+        const val = document.getElementById('username').value.trim();
+        if(!val) return alert('Введите имя!');
+        myName = val;
         
-        // Размеры canvas в системе координат игры
-        canvas.width = 900;
-        canvas.height = 500;
+        if (SUPABASE_URL.includes('YOUR_')) {
+            alert('Внимание! Забыла заменить ключи Supabase в коде!');
+        }
 
-        let localPlayer = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            angle: 0,
-            speed: 0,
-            score: 0,
-            color: '#' + Math.floor(Math.random()*16777215).toString(16)
-        };
+        document.getElementById('login-screen').style.display = 'none';
+        canvas.style.display = 'block';
+        document.getElementById('ui').style.display = 'block';
 
-        let remotePlayers = {};
-        let bullets = [];
-        let stars = [];
+        initMultiplayer();
+        loop();
+    };
+
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    function initMultiplayer() {
+        if (!supabaseClient) return;
+
+        const channel = supabaseClient.channel('space_game_room');
+
+        channel
+            .on('broadcast', { event: 'state' }, payload => {
+                if (payload.payload.id !== myId) {
+                    players[payload.payload.id] = payload.payload;
+                }
+            })
+            .subscribe();
+
+        // Каждые 50мс отправляем свои координаты
+        setInterval(() => {
+            if (!myName) return;
+            channel.send({
+                type: 'broadcast',
+                event: 'state',
+                payload: { id: myId, name: myName, x: myX, y: myY, score: myScore }
+            });
+        }, 50);
+    }
+
+    function update() {
+        if (keys['ArrowLeft'] || keys['KeyA']) myX -= speed;
+        if (keys['ArrowRight'] || keys['KeyD']) myX += speed;
+        if (keys['ArrowUp'] || keys['KeyW']) myY -= speed;
+        if (keys['ArrowDown'] || keys['KeyS']) myY += speed;
+
+        // Границы экрана
+        myX = Math.max(20, Math.min(780, myX));
+        myY = Math.max(20, Math.min(580, myY));
+    }
+
+    function draw() {
+        ctx.fillStyle = '#0b0f19';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Звезды
+        ctx.fillStyle = '#ffffff';
+        stars.forEach(s => {
+            ctx.globalAlpha = Math.random() * 0.7 + 0.3;
+            ctx.fillRect(s.x, s.y, s.size, s.size);
+        });
+        ctx.globalAlpha = 1.0;
+
+        // Рисуем себя
+        drawShip(myX, myY, myName, '#6366f1');
+
+        // Рисуем остальных игроков
+        for (let id in players) {
+            let p = players[id];
+            drawShip(p.x, p.y, p.name, '#ec4899');
+        }
+    }
+
+    function drawShip(x, y, name, color) {
+        ctx.save();
+        ctx.translate(x, y);
         
-        // Генерация звездного фона
-        for(let i=0; i<60; i++) {
-            stars.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                size: Math.random() * 2,
-                alpha: Math.random()
-            });
-        }
+        // Корпус корабля
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(0, -15);
+        ctx.lineTo(12, 12);
+        ctx.lineTo(-12, 12);
+        ctx.closePath();
+        ctx.fill();
 
-        // Клавиши управления
-        const keys = {};
-        window.addEventListener('keydown', (e) => { keys[e.code] = true; if(e.code === 'Space') { e.preventDefault(); shoot(); } });
-        window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+        // Огонек двигателя
+        ctx.fillStyle = '#f97316';
+        ctx.fillRect(-4, 12, 8, 6);
 
-        // Функция кастомных алертов без использования alert()
-        window.showCustomAlert = function(title, text) {
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-text').innerText = text;
-            document.getElementById('custom-modal').classList.remove('hidden');
-        };
+        // Имя игрока
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(name, 0, -22);
 
-        window.closeModal = function() {
-            document.getElementById('custom-modal').classList.add('hidden');
-        };
+        ctx.restore();
+    }
 
-        window.toggleModal = function(modalId) {
-            const m = document.getElementById(modalId);
-            m.classList.toggle('hidden');
-        };
-
-        // Инициализация Firebase и авторизация
-        async function initFirebase() {
-            if (!firebaseConfig) {
-                console.warn("Firebase config not found, running local fallback mode.");
-                return;
-            }
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                userId = auth.currentUser?.uid || crypto.randomUUID();
-                document.getElementById('player-id-display').innerText = `ID: ${userId}`;
-                document.getElementById('connection-status').classList.remove('bg-emerald-500');
-                document.getElementById('connection-status').classList.add('bg-indigo-500');
-            } catch (err) {
-                console.error("Firebase auth error:", err);
-            }
-        }
-
-        window.joinGame = async function() {
-            const input = document.getElementById('player-name-input').value.trim();
-            if (!input) {
-                showCustomAlert("Внимание", "Пожалуйста, введите свое имя!");
-                return;
-            }
-            playerName = input;
-            isJoined = true;
-            document.getElementById('login-screen').classList.add('hidden');
-
-            if (db && userId) {
-                // Подписка на других игроков в Firestore
-                const playersRef = collection(db, 'artifacts', appId, 'public', 'data', 'players');
-                onSnapshot(playersRef, (snapshot) => {
-                    remotePlayers = {};
-                    let scoreHtml = '';
-                    snapshot.forEach(docSnap => {
-                        const data = docSnap.data();
-                        if (docSnap.id !== userId) {
-                            remotePlayers[docSnap.id] = data;
-                        }
-                        scoreHtml += `<div class="flex items-center space-x-2"><span class="w-2.5 h-2.5 rounded-full" style="background:${data.color}"></span><span class="text-gray-200">${data.name}:</span> <span class="font-bold text-indigo-400">${data.score}</span></div>`;
-                    });
-                    document.getElementById('score-board').innerHTML = scoreHtml || '<span class="text-gray-400">Вы единственный игрок на арене. Позовите подругу!</span>';
-                }, (error) => {
-                    console.error("Firestore snapshot error:", error);
-                });
-            }
-        };
-
-        function shoot() {
-            if (!isJoined) return;
-            bullets.push({
-                x: localPlayer.x + Math.cos(localPlayer.angle) * 20,
-                y: localPlayer.y + Math.sin(localPlayer.angle) * 20,
-                dx: Math.cos(localPlayer.angle) * 8,
-                dy: Math.sin(localPlayer.angle) * 8,
-                color: localPlayer.color
-            });
-        }
-
-        // Основной игровой цикл
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Отрисовка звездного фона
-            ctx.fillStyle = '#ffffff';
-            stars.forEach(star => {
-                ctx.globalAlpha = star.alpha;
-                ctx.fillRect(star.x, star.y, star.size, star.size);
-            });
-            ctx.globalAlpha = 1.0;
-
-            if (isJoined) {
-                // Управление локальным игроком
-                if (keys['ArrowLeft'] || keys['KeyA']) localPlayer.angle -= 0.05;
-                if (keys['ArrowRight'] || keys['KeyD']) localPlayer.angle += 0.05;
-                if (keys['ArrowUp'] || keys['KeyW']) {
-                    localPlayer.speed = Math.min(localPlayer.speed + 0.1, 3.5);
-                } else {
-                    localPlayer.speed *= 0.95; // затухание скорости
-                }
-
-                localPlayer.x += Math.cos(localPlayer.angle) * localPlayer.speed;
-                localPlayer.y += Math.sin(localPlayer.angle) * localPlayer.speed;
-
-                // Проход сквозь границы экрана
-                if (localPlayer.x < 0) localPlayer.x = canvas.width;
-                if (localPlayer.x > canvas.width) localPlayer.x = 0;
-                if (localPlayer.y < 0) localPlayer.y = canvas.height;
-                if (localPlayer.y > canvas.height) localPlayer.y = 0;
-
-                // Синхронизация данных с сервером Firestore (если подключен)
-                if (db && userId && Math.random() < 0.2) { // отправляем не каждый кадр для оптимизации
-                    const playerDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'players', userId);
-                    setDoc(playerDocRef, {
-                        name: playerName,
-                        x: localPlayer.x,
-                        y: localPlayer.y,
-                        angle: localPlayer.angle,
-                        score: localPlayer.score,
-                        color: localPlayer.color,
-                        lastActive: Date.now()
-                    }, { merge: true }).catch(err => console.error(err));
-                }
-
-                // Отрисовка локального игрока (корабля)
-                drawShip(localPlayer.x, localPlayer.y, localPlayer.angle, playerName, localPlayer.color, true);
-            }
-
-            // Отрисовка удаленных игроков (подруги)
-            for (let id in remotePlayers) {
-                const p = remotePlayers[id];
-                drawShip(p.x, p.y, p.angle, p.name, p.color || '#3b82f6', false);
-            }
-
-            // Отрисовка и обновление пуль
-            ctx.fillStyle = '#f43f5e';
-            for (let i = bullets.length - 1; i >= 0; i--) {
-                let b = bullets[i];
-                b.x += b.dx;
-                b.y += b.dy;
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
-                ctx.fillStyle = b.color;
-                ctx.fill();
-
-                // Удаление пуль за границами
-                if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
-                    bullets.splice(i, 1);
-                }
-            }
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        // Функция отрисовки космического корабля
-        function drawShip(x, y, angle, name, color, isLocal) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(angle);
-
-            // Корпус корабля (треугольник)
-            ctx.beginPath();
-            ctx.moveTo(15, 0);
-            ctx.lineTo(-10, -10);
-            ctx.lineTo(-6, 0);
-            ctx.lineTo(-10, 10);
-            ctx.closePath();
-            ctx.fillStyle = color;
-            ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            // Огонь из двигателя при движении
-            ctx.beginPath();
-            ctx.moveTo(-10, -5);
-            ctx.lineTo(-18, 0);
-            ctx.lineTo(-10, 5);
-            ctx.fillStyle = '#f97316';
-            ctx.fill();
-
-            ctx.restore();
-
-            // Имя игрока над кораблем
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '11px Inter, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(name + (isLocal ? ' (Вы)' : ''), x, y - 20);
-        }
-
-        // Запуск при загрузке
-        window.onload = function() {
-            initFirebase();
-            gameLoop();
-        };
-    </script>
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+</script>
 </body>
 </html>
