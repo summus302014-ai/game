@@ -8,10 +8,10 @@ const io = new Server(server, {
   cors: { origin: "*" }
 });
 
-let rooms = {}; // Комнаты для бойцов: { roomId: { players: {} } }
+let rooms = {};
 
 io.on('connection', (socket) => {
-  socket.on('join_room', ({ roomId, username }) => {
+  socket.on('join_room', ({ roomId, username, carType, color }) => {
     socket.join(roomId);
     socket.roomId = roomId;
 
@@ -19,51 +19,41 @@ io.on('connection', (socket) => {
       rooms[roomId] = { players: {} };
     }
 
-    const playerKeys = Object.keys(rooms[roomId].players);
-    if (playerKeys.length >= 2) {
-      socket.emit('room_full');
-      return;
-    }
-
-    // Первый игрок — слева (игрок 1), второй — справа (игрок 2)
-    const side = playerKeys.length === 0 ? 'left' : 'right';
-
+    // Спавним игроков в разных точках старта
+    const count = Object.keys(rooms[roomId].players).length;
     rooms[roomId].players[socket.id] = {
       id: socket.id,
       name: username,
-      side: side,
-      x: side === 'left' ? 150 : 650,
-      y: 350,
-      hp: 100,
-      state: 'idle' // idle, walk, punch, kick, hit
+      carType: carType || 'speed',
+      color: color || '#f43f5e',
+      x: 350 + (count % 2) * 50,
+      y: 720 + Math.floor(count / 2) * 60,
+      angle: -Math.PI / 2,
+      speed: 0,
+      drifting: false
     };
 
-    io.to(roomId).emit('update_game', rooms[roomId].players);
+    io.to(roomId).emit('update_players', rooms[roomId].players);
   });
 
-  socket.on('player_action', (data) => {
+  socket.on('player_drive', (data) => {
     const room = rooms[socket.roomId];
     if (room && room.players[socket.id]) {
       let p = room.players[socket.id];
       p.x = data.x;
       p.y = data.y;
-      p.state = data.state;
+      p.angle = data.angle;
+      p.speed = data.speed;
+      p.drifting = data.drifting;
 
-      // Проверка ударов по сопернику
-      if (data.action === 'punch' || data.action === 'kick') {
-        for (let id in room.players) {
-          if (id !== socket.id) {
-            let enemy = room.players[id];
-            // Если бойцы близко друг к другу — наносим урон
-            if (Math.abs(p.x - enemy.x) < 70) {
-              enemy.hp = Math.max(0, enemy.hp - (data.action === 'punch' ? 10 : 15));
-              enemy.state = 'hit';
-            }
-          }
-        }
-      }
+      socket.to(socket.roomId).emit('update_players', room.players);
+    }
+  });
 
-      io.to(roomId).emit('update_game', room.players);
+  socket.on('chat_message', (text) => {
+    const room = rooms[socket.roomId];
+    if (room && room.players[socket.id]) {
+      io.to(socket.roomId).emit('chat_message', { user: room.players[socket.id].name, text });
     }
   });
 
@@ -71,7 +61,7 @@ io.on('connection', (socket) => {
     const roomId = socket.roomId;
     if (roomId && rooms[roomId]) {
       delete rooms[roomId].players[socket.id];
-      io.to(roomId).emit('update_game', rooms[roomId].players);
+      io.to(roomId).emit('update_players', rooms[roomId].players);
       if (Object.keys(rooms[roomId].players).length === 0) {
         delete rooms[roomId];
       }
@@ -81,5 +71,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Fighting server running on port ${PORT}`);
+  console.log(`Neon Turbo Server running on port ${PORT}`);
 });
