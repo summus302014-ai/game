@@ -3,112 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PolyDrive 3D — Multiplayer Worlds</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <title>Neon Street Arena — Retro Fighter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root {
-            --bg-dark: #0f1117;
-            --panel-bg: rgba(22, 26, 38, 0.85);
-            --accent: #38bdf8;
-            --accent-hover: #0ea5e9;
-            --border: rgba(255, 255, 255, 0.1);
+            --bg: #090a0f;
+            --panel: #131620;
+            --accent: #f43f5e;
             --text: #f3f4f6;
-            --text-dim: #9ca3af;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        body { font-family: 'Press Start 2P', monospace; background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
-        header {
-            height: 60px; background: var(--panel-bg); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 10;
+        .game-container {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            background: #1a1c29;
+            border: 4px solid #38bdf8;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
         }
-        .logo { font-size: 1.2rem; font-weight: 800; background: linear-gradient(135deg, #7dd3fc, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
-        .room-badge { background: rgba(56, 189, 248, 0.15); border: 1px solid var(--accent); padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; color: #7dd3fc; }
-        .status-badge { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; background: rgba(255, 255, 255, 0.05); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); }
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 8px #ef4444; }
-        .dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
 
-        .workspace { flex: 1; display: flex; position: relative; }
-        .canvas-container { flex: 1; position: relative; background: #000; overflow: hidden; }
-        #webgl-container { width: 100%; height: 100%; display: block; }
+        canvas { display: block; background: linear-gradient(to bottom, #0f172a, #1e1b4b); }
 
-        .sidebar { width: 280px; background: var(--panel-bg); backdrop-filter: blur(12px); border-left: 1px solid var(--border); display: flex; flex-direction: column; z-index: 5; }
-        .panel-header { padding: 16px; font-size: 0.9rem; font-weight: 600; border-bottom: 1px solid var(--border); color: var(--text-dim); text-transform: uppercase; }
-        .players-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
-        .player-card { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; font-size: 0.9rem; }
+        /* HUD (Интерфейс здоровья) */
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
 
-        .chat-section { flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--border); }
-        .messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; }
-        .msg { background: rgba(255, 255, 255, 0.03); padding: 8px 10px; border-radius: 6px; line-height: 1.4; }
-        .msg .author { font-weight: 600; color: var(--accent); margin-bottom: 2px; }
-        .chat-input { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
-        input[type="text"] { flex: 1; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: #fff; outline: none; font-size: 0.85rem; }
-        .btn-send { background: var(--accent); border: none; color: #fff; padding: 0 12px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .fighter-hud {
+            width: 340px;
+        }
 
-        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .modal-card { background: var(--panel-bg); border: 1px solid var(--border); padding: 32px; border-radius: 16px; width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .modal-card h2 { margin-bottom: 8px; color: #7dd3fc; }
-        .modal-card p { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 20px; }
-        .modal-card input { width: 100%; margin-bottom: 16px; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; }
-        
-        .mode-select { display: flex; gap: 10px; margin-bottom: 20px; }
-        .mode-btn { flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: var(--text-dim); cursor: pointer; font-weight: 600; transition: 0.2s; }
-        .mode-btn.selected { background: var(--accent); color: #000; border-color: var(--accent); }
+        .name-tag { font-size: 10px; margin-bottom: 6px; color: #38bdf8; }
+        .hp-bar-bg { width: 100%; height: 20px; background: #334155; border: 2px solid #fff; border-radius: 4px; overflow: hidden; }
+        .hp-bar-fill { width: 100%; height: 100%; background: #10b981; transition: width 0.2s; }
+        .hp-bar-fill.right { background: #f43f5e; }
 
-        .btn-main { width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: 8px; color: #000; font-weight: 800; cursor: pointer; transition: background 0.2s; }
-        .btn-main:hover { background: var(--accent-hover); }
+        .vs-badge { font-size: 14px; color: #facc15; text-shadow: 0 0 10px #facc15; }
 
-        .controls-hint { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 10px 16px; border-radius: 8px; font-size: 0.8rem; color: var(--text-dim); border: 1px solid var(--border); pointer-events: none; }
+        /* Модальное окно */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-card {
+            background: var(--panel);
+            border: 2px solid #38bdf8;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            width: 400px;
+            box-shadow: 0 0 20px rgba(56,189,248,0.2);
+        }
+
+        .modal-card h2 { font-size: 16px; margin-bottom: 15px; color: #38bdf8; }
+        .modal-card p { font-size: 8px; color: #94a3b8; margin-bottom: 20px; line-height: 1.6; }
+        .modal-card input {
+            width: 100%; padding: 12px; background: #000; border: 2px solid #334155;
+            color: #fff; font-family: 'Press Start 2P', monospace; font-size: 10px; text-align: center; margin-bottom: 15px; outline: none;
+        }
+        .modal-card input:focus { border-color: #38bdf8; }
+
+        .btn {
+            width: 100%; padding: 12px; background: #38bdf8; border: none; color: #000;
+            font-family: 'Press Start 2P', monospace; font-size: 10px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .btn:hover { background: #7dd3fc; box-shadow: 0 0 10px #38bdf8; }
+
+        .controls-hint {
+            margin-top: 15px; font-size: 8px; color: #64748b; text-align: center; line-height: 1.8;
+        }
     </style>
 </head>
 <body>
 
     <div class="modal" id="loginModal">
         <div class="modal-card">
-            <h2>PolyDrive 3D</h2>
-            <p>Выбери режим игры и введи никнейм</p>
-            <div class="mode-select">
-                <button class="mode-btn selected" id="btnExplore" onclick="setMode('explore')">🌍 Исследование</button>
-                <button class="mode-btn" id="btnRace" onclick="setMode('race')">🏁 Гонка</button>
-            </div>
-            <input type="text" id="usernameInput" placeholder="Твой никнейм..." maxlength="15">
-            <button class="btn-main" onclick="joinGame()">В путь!</button>
+            <h2>NEON STREET ARENA</h2>
+            <p>Управление:<br>A/D — Ходьба<br>W — Прыжок<br>J — Удар рукой<br>K — Удар ногой</p>
+            <input type="text" id="usernameInput" placeholder="Твой ник..." maxlength="10">
+            <button class="btn" onclick="joinGame()">В БОЙ!</button>
         </div>
     </div>
 
-    <header>
-        <div class="logo">PolyDrive 3D 🏎️</div>
-        <div class="room-badge" id="roomBadge" onclick="copyLink()">Комната: Загрузка...</div>
-        <div class="status-badge">
-            <div class="dot" id="statusDot"></div>
-            <span id="statusText">Офлайн</span>
-        </div>
-    </header>
-
-    <div class="workspace">
-        <div class="canvas-container" id="canvasContainer">
-            <div id="webgl-container"></div>
-            <div class="controls-hint" id="hintsText">Управление: Стрелочки / WASD — движение</div>
-        </div>
-
-        <div class="sidebar">
-            <div class="panel-header">Игроки (<span id="onlineCount">0</span>)</div>
-            <div class="players-list" id="playersList"></div>
-
-            <div class="chat-section">
-                <div class="panel-header">Чат мира</div>
-                <div class="messages" id="chatMessages"></div>
-                <div class="chat-input">
-                    <input type="text" id="msgInput" placeholder="Сообщение...">
-                    <button class="btn-send" onclick="sendMsg()">></button>
-                </div>
+    <div class="game-container">
+        <div class="hud">
+            <div class="fighter-hud">
+                <div class="name-tag" id="p1Name">Игрок 1</div>
+                <div class="hp-bar-bg"><div class="hp-bar-fill" id="p1Hp" style="width: 100%;"></div></div>
+            </div>
+            <div class="vs-badge">VS</div>
+            <div class="fighter-hud" style="text-align: right;">
+                <div class="name-tag" id="p2Name">Ожидание...</div>
+                <div class="hp-bar-bg"><div class="hp-bar-fill right" id="p2Hp" style="width: 100%;"></div></div>
             </div>
         </div>
+
+        <canvas id="fightCanvas" width="800" height="500"></canvas>
     </div>
+
+    <div class="controls-hint">Ссылка на комнату вверху страницы — скинь другу для дуэли!</div>
 
     <script>
         // ВСТАВЬ СВОЮ ССЫЛКУ С RENDER СЮДА:
@@ -116,83 +128,18 @@
 
         let socket;
         let nickname = "";
-        let gameMode = "explore";
-        let remoteCars = {};
-
         const urlParams = new URLSearchParams(window.location.search);
         let roomId = urlParams.get('room');
         if (!roomId) {
             roomId = Math.random().toString(36).substring(2, 8);
             window.history.replaceState({}, '', `?room=${roomId}`);
         }
-        document.getElementById('roomBadge').innerText = `Комната: ${roomId} (Копировать)`;
 
-        function copyLink() {
-            navigator.clipboard.writeText(window.location.href);
-            alert('Ссылка на мир скопирована! Отправь другу.');
-        }
+        const canvas = document.getElementById('fightCanvas');
+        const ctx = canvas.getContext('2d');
 
-        function setMode(m) {
-            gameMode = m;
-            document.getElementById('btnExplore').classList.toggle('selected', m === 'explore');
-            document.getElementById('btnRace').classList.toggle('selected', m === 'race');
-            document.getElementById('hintsText').innerText = m === 'explore' ? 
-                'Режим: Свободное исследование холмов и рельефа' : 
-                'Режим: Кольцевая гонка с препятствиями!';
-        }
-
-        // --- THREE.JS 3D МИР ---
-        const container = document.getElementById('webgl-container');
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f1117);
-        scene.fog = new THREE.FogExp2(0x0f1117, 0.015);
-
-        const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        renderer.shadowMap.enabled = true;
-        container.appendChild(renderer.domElement);
-
-        // Свет
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
-        dirLight.position.set(50, 100, 50);
-        scene.add(dirLight);
-
-        // Земля (рельеф)
-        const planeGeo = new THREE.PlaneGeometry(500, 500, 40, 40);
-        planeGeo.rotateX(-Math.PI / 2);
-        // Создаем холмы через вершины
-        const pos = planeGeo.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-            let px = pos.getX(i);
-            let pz = pos.getZ(i);
-            if (Math.abs(px) > 20 || Math.abs(pz) > 20) {
-                pos.setY(i, Math.sin(px * 0.05) * Math.cos(pz * 0.05) * 6);
-            }
-        }
-        planeGeo.computeVertexNormals();
-        const planeMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
-        const terrain = new THREE.Mesh(planeGeo, planeMat);
-        scene.add(terrain);
-
-        // Наша машинка (3D модель из кубиков)
-        const carGroup = new THREE.Group();
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.5 });
-        const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 4), bodyMat);
-        bodyMesh.position.y = 0.6;
-        carGroup.add(bodyMesh);
-
-        const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 2), bodyMat);
-        roofMesh.position.set(0, 1.2, -0.2);
-        carGroup.add(roofMesh);
-        scene.add(carGroup);
-
-        // Физика нашей машины
-        let carPos = { x: 0, y: 1, z: 0 };
-        let carAngle = 0;
-        let carSpeed = 0;
+        let myData = { x: 150, y: 350, vx: 0, vy: 0, state: 'idle' };
+        let allPlayers = {};
         let keys = {};
 
         window.onkeydown = (e) => keys[e.code] = true;
@@ -207,91 +154,126 @@
             socket = io(SERVER_URL);
 
             socket.on('connect', () => {
-                document.getElementById('statusDot').classList.add('online');
-                document.getElementById('statusText').innerText = 'Онлайн';
-                socket.emit('join_room', { roomId, username: nickname, mode: gameMode });
+                socket.emit('join_room', { roomId, username: nickname });
             });
 
-            socket.on('update_players', (players) => {
-                const list = document.getElementById('playersList');
-                const keysArr = Object.keys(players);
-                document.getElementById('onlineCount').innerText = keysArr.length;
-                list.innerHTML = '';
+            socket.on('room_full', () => {
+                alert('Комната заполнена! Попробуй зайти по другой ссылке.');
+                window.location.reload();
+            });
 
-                keysArr.forEach(id => {
+            socket.on('update_game', (players) => {
+                allPlayers = players;
+                
+                // Обновляем шкалы здоровья в HUD
+                for (let id in players) {
                     let p = players[id];
-                    list.innerHTML += `<div class="player-card"><span>🚗 ${p.name} (${p.mode === 'explore'?'Исследует':'Гонка'})</span></div>`;
-
-                    if (id !== socket.id) {
-                        if (!remoteCars[id]) {
-                            // Создаем модель для другого игрока
-                            const rMesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 4), new THREE.MeshStandardMaterial({ color: 0xf43f5e }));
-                            scene.add(rMesh);
-                            remoteCars[id] = rMesh;
-                        }
-                        remoteCars[id].position.set(p.x, p.y, p.z);
-                        remoteCars[id].rotation.y = p.ry;
-                    }
-                });
-
-                // Удаляем вышедших
-                for (let id in remoteCars) {
-                    if (!players[id]) {
-                        scene.remove(remoteCars[id]);
-                        delete remoteCars[id];
+                    if (p.side === 'left') {
+                        document.getElementById('p1Name').innerText = p.name;
+                        document.getElementById('p1Hp').style.width = p.hp + '%';
+                    } else {
+                        document.getElementById('p2Name').innerText = p.name;
+                        document.getElementById('p2Hp').style.width = p.hp + '%';
                     }
                 }
             });
 
-            socket.on('chat_message', (data) => {
-                const box = document.getElementById('chatMessages');
-                box.innerHTML += `<div class="msg"><div class="author">${data.user}</div><div>${data.text}</div></div>`;
-                box.scrollTop = box.scrollHeight;
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            if (!socket) return;
+
+            // Простое управление физикой бойца
+            if (keys['KeyA'] || keys['ArrowLeft']) {
+                myData.x -= 4;
+                myData.state = 'walk';
+            } else if (keys['KeyD'] || keys['ArrowRight']) {
+                myData.x += 4;
+                myData.state = 'walk';
+            } else {
+                myData.state = 'idle';
+            }
+
+            // Прыжок
+            if ((keys['KeyW'] || keys['ArrowUp']) && myData.y >= 350) {
+                myData.vy = -12;
+            }
+
+            myData.vy += 0.6; // гравитация
+            myData.y += myData.vy;
+            if (myData.y > 350) {
+                myData.y = 350;
+                myData.vy = 0;
+            }
+
+            // Границы экрана
+            if (myData.x < 50) myData.x = 50;
+            if (myData.x > 750) myData.x = 750;
+
+            let action = null;
+            if (keys['KeyJ']) action = 'punch';
+            if (keys['KeyK']) action = 'kick';
+
+            socket.emit('player_action', {
+                x: myData.x,
+                y: myData.y,
+                state: action ? action : myData.state,
+                action: action
             });
-
-            animate();
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Управление машиной
-            if (keys['ArrowUp'] || keys['KeyW']) carSpeed += 0.015;
-            if (keys['ArrowDown'] || keys['KeyS']) carSpeed -= 0.015;
-            carSpeed *= 0.95; // трение
-
-            if (keys['ArrowLeft'] || keys['KeyA']) carAngle += 0.03 * (carSpeed * 2);
-            if (keys['ArrowRight'] || keys['KeyD']) carAngle -= 0.03 * (carSpeed * 2);
-
-            carPos.x += Math.sin(carAngle) * carSpeed;
-            carPos.z += Math.cos(carAngle) * carSpeed;
+            // Рисуем фон (киберпанк-улица с неоновыми полосами)
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, 380);
             
-            // Плавное следование рельефу
-            carPos.y = Math.sin(carPos.x * 0.05) * Math.cos(carPos.z * 0.05) * 6 + 0.5;
+            // Земля
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 380, canvas.width, 120);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(0, 380, canvas.width, 4);
 
-            carGroup.position.set(carPos.x, carPos.y, carPos.z);
-            carGroup.rotation.y = carAngle;
+            // Рисуем всех бойцов
+            for (let id in allPlayers) {
+                let p = allPlayers[id];
+                
+                ctx.save();
+                ctx.translate(p.x, p.y);
 
-            // Камера следит за машиной сзади
-            camera.position.x = carPos.x - Math.sin(carAngle) * 12;
-            camera.position.y = carPos.y + 5;
-            camera.position.z = carPos.z - Math.cos(carAngle) * 12;
-            camera.lookAt(carPos.x, carPos.y + 1, carPos.z);
+                // Тело бойца (стилизованный ретро-робот/боец)
+                ctx.fillStyle = p.side === 'left' ? '#38bdf8' : '#f43f5e';
+                ctx.shadowColor = p.side === 'left' ? '#38bdf8' : '#f43f5e';
+                ctx.shadowBlur = 15;
 
-            // Отправляем координаты на сервер
-            if (socket && socket.connected) {
-                socket.emit('player_move', { x: carPos.x, y: carPos.y, z: carPos.z, rx: 0, ry: carAngle });
+                // Туловище
+                ctx.fillRect(-15, -60, 30, 45);
+                // Голова
+                ctx.fillRect(-10, -80, 20, 20);
+
+                // Анимация удара или движения
+                if (p.state === 'punch') {
+                    ctx.fillRect(p.side === 'left' ? 15 : -35, -50, 25, 10); // кулак
+                } else if (p.state === 'kick') {
+                    ctx.fillRect(p.side === 'left' ? 15 : -35, -20, 30, 10); // нога
+                }
+
+                ctx.restore();
+
+                // Никнейм над бойцом
+                ctx.fillStyle = '#fff';
+                ctx.font = '8px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText(p.name, p.x, p.y - 95);
             }
-
-            renderer.render(scene, camera);
         }
 
-        function sendMsg() {
-            const input = document.getElementById('msgInput');
-            if (input.value.trim() && socket) {
-                socket.emit('chat_message', input.value.trim());
-                input.value = '';
-            }
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
         }
     </script>
 </body>
