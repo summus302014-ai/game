@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberSpace App</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- ЭКРАН 1: АВТОРИЗАЦИЯ / ВХОД -->
+  <div id="auth-screen" class="auth-container">
+    <div class="auth-card neon-card">
+      <h1 class="logo">NEON // HUB</h1>
+      <p class="subtitle">Войдите в систему для доступа к сети</p>
+
+      <form id="auth-form" onsubmit="handleAuth(event)">
+        <input type="email" id="auth-email" class="neon-input" placeholder="Ваш Email" required>
+        <input type="password" id="auth-password" class="neon-input" placeholder="Пароль" required>
+        
+        <div class="auth-actions">
+          <button type="submit" class="action-btn" id="login-btn">Войти</button>
+          <button type="button" class="secondary-btn" onclick="handleSignUp()">Регистрация</button>
+        </div>
+      </form>
+      <div id="auth-error" class="error-msg"></div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН 2: ГЛАВНЫЙ ИНТЕРФЕЙС (Скрыт по умолчанию) -->
+  <div id="app-screen" class="app-container hidden">
+    
+    <!-- Навигация -->
+    <aside class="sidebar">
+      <div class="logo">NEON // HUB</div>
+      <nav class="nav-menu">
+        <button class="nav-btn active" onclick="loadModule('feed', this)">Лента</button>
+        <button class="nav-btn" onclick="loadModule('messenger', this)">Мессенджер</button>
+        <button class="nav-btn" onclick="loadModule('profile', this)">Профиль</button>
+        <button class="nav-btn" onclick="loadModule('library', this)">Библиотека</button>
+        <button class="nav-btn" onclick="loadModule('reels', this)">Рилсы</button>
+      </nav>
+      <button class="logout-btn" onclick="handleLogout()">Выйти</button>
+    </aside>
+
+    <!-- Динамический контент -->
+    <main class="main-content" id="module-container">
+      <!-- Сюда JS будет подгружать активный модуль -->
+    </main>
+
+  </div>
+
+  <!-- Главный скрипт логики -->
+  <script src="app.js"></script>
+</body>
+</html>
