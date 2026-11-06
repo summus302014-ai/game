@@ -1,6 +1,6 @@
 // Конфигурация Supabase
 const SUPABASE_URL = 'https://rytfzqktytcjsytkxrqn.supabase.co';
-const SUPABASE_KEY = 'ТВОЙ_SUPABASE_ANON_KEY';
+const SUPABASE_KEY = 'sb_publishable_31LjSxs-D3hhNVnFFNTAhA_NKeQhXKk';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Проверка сессии при старте
